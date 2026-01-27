@@ -246,6 +246,103 @@ program
   );
 
 program
+  .command("analyze")
+  .description(
+    "Analyze a GitHub repository using Octolens analyzemyrepo service"
+  )
+  .argument(
+    "[repository]",
+    "GitHub repository in format owner/repo (e.g., facebook/react). Defaults to current repository."
+  )
+  .option("--open", "Open the analysis in browser")
+  .action(async (repository: string | undefined, options: { open?: boolean }) => {
+    const OCTOLENS_BASE_URL = "https://analyzemyrepo.com";
+
+    let repoToAnalyze = repository;
+
+    // If no repository provided, try to detect from git remote
+    if (!repoToAnalyze) {
+      try {
+        const gitRemote = execSync("git remote get-url origin", {
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        }).trim();
+
+        // Parse GitHub URL formats:
+        // https://github.com/owner/repo.git
+        // git@github.com:owner/repo.git
+        const httpsMatch = gitRemote.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
+        const sshMatch = gitRemote.match(/github\.com:([^\/]+)\/([^\/\.]+)/);
+
+        if (httpsMatch) {
+          repoToAnalyze = `${httpsMatch[1]}/${httpsMatch[2]}`;
+        } else if (sshMatch) {
+          repoToAnalyze = `${sshMatch[1]}/${sshMatch[2]}`;
+        }
+
+        if (repoToAnalyze) {
+          console.log(chalk.blue(`Detected repository: ${repoToAnalyze}`));
+        }
+      } catch {
+        // Not in a git repo or no remote configured
+      }
+    }
+
+    if (!repoToAnalyze) {
+      console.error(
+        chalk.red(
+          "Could not detect repository. Please provide a repository in format owner/repo (e.g., facebook/react)"
+        )
+      );
+      process.exit(1);
+    }
+
+    // Validate repository format
+    if (!repoToAnalyze.match(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)) {
+      console.error(
+        chalk.red(
+          `Invalid repository format: "${repoToAnalyze}". Expected format: owner/repo`
+        )
+      );
+      process.exit(1);
+    }
+
+    const analysisUrl = `${OCTOLENS_BASE_URL}/analyze/${repoToAnalyze}`;
+
+    console.log(chalk.green(`\n🔍 Octolens Repository Analysis`));
+    console.log(chalk.cyan(`Repository: ${repoToAnalyze}`));
+    console.log(chalk.cyan(`Analysis URL: ${analysisUrl}\n`));
+
+    if (options.open) {
+      console.log(chalk.blue("Opening in browser..."));
+      try {
+        // Cross-platform open command
+        const openCommand =
+          process.platform === "darwin"
+            ? "open"
+            : process.platform === "win32"
+            ? "start"
+            : "xdg-open";
+
+        execSync(`${openCommand} "${analysisUrl}"`, {
+          stdio: "ignore",
+        });
+        console.log(chalk.green("Browser opened successfully!"));
+      } catch {
+        console.log(
+          chalk.yellow(
+            `Could not open browser automatically. Please visit the URL above.`
+          )
+        );
+      }
+    } else {
+      console.log(
+        chalk.gray("Tip: Use --open flag to open the analysis in your browser")
+      );
+    }
+  });
+
+program
   .command("remove")
   .description(
     "Remove a component and its unused dependencies (components and npm packages)"
