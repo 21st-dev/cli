@@ -1,6 +1,6 @@
 {
   "name": "@21st-dev/cli",
-  "version": "0.0.29",
+  "version": "0.0.30",
   "type": "module",
   "description": "MCP configuration installer by 21st.dev",
   "main": "dist/index.js",
